@@ -1,0 +1,22 @@
+﻿@*
+For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+
+Create a loop that displays "Hello" NumTimes.
+Browse to URL:https://localhost:xxxx/HelloWorld/Welcome?name=hozachief&numtimes=100
+Data is taken from the URL and passed to the controller using the MVC model binder.
+The controller packages the data into a ViewData dictionary and passes that object to
+the view. The view then renders the data as HTML to the browser.
+*@
+
+@{
+    ViewData["Title"] = "Welcome";
+}
+
+<h2>Welcome</h2>
+
+<ul>
+    @for (int i = 0; i < (int)ViewData["NumTimes"]; i++)
+    {
+        <li>@ViewData["Message"]</li>
+     }
+</ul>

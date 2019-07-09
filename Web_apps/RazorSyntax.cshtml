@@ -1,0 +1,616 @@
+@*
+Razor syntax reference for ASP.NET Core
+Razor is a markup syntax for embedding server-based code into webpages. The Razor syntax consists of
+Razor markup, C#, and HTML. Files containing Razor generally have a .cshtml file extension.
+
+Rendering HTML
+The default Razor language is HTML. Rendering HTML from Razor markup is no different than rendering
+from an HTML file. HTML markup in .cshtml Razor files is rendered by the server unchanged.
+
+Razor syntax
+Razor supports C# and uses the @ symbol to transition from HTML to C#. Razor evaluates C# expressions
+and renders them in the HTML output.
+
+When an @ symbol is followed by a Razor reserved keyword, it transitions into Razor-specific markup.
+Otherwise, it transitions into plain C#.
+*@
+
+@*To escape an @ symbol in Razor markup, use a second @ symbol:*@
+<p>@@Username</p>
+
+@*The code is rendered in HTML with a single @ symbol.*@
+<p>@Username</p>
+
+@*
+HTML attributes and content containing email addresses don't treat the @ symbol as a transition character.
+The email addresses in the following example are untouched by Razor parsing:
+*@
+<a href="mailto:Support@contoso.com">Support@contoso.com</a>
+
+@*
+Implicit Razor expressions
+Implicit Razor expressions start with @ followed by C# code:
+*@
+<p>@DateTime.Now</p>
+<p>@DateTime.IsLeapYear(2016)</p>
+
+@*
+With the exception of the C# await keyword, implicit expressions must not contain spaces.
+If the C# statement has a clear ending, spaces can be itermingled:
+*@
+<p>@await DoSomething("hello", "world")</p>
+
+@*
+Implicit expressions cannot contain C# generics, as the characters inside the brackets (<>) are
+interpreted as an HTML tag. The following code is not valid:
+*@
+<p>@GenericMethod<int>()</p>
+
+@*
+...
+Generic method calls must be wrapped in an explicit Razor expression or a Razor code block.
+
+Explicit Razor expressions
+Explicit Razor expressions consist of an @ symbol with balanced parenthesis. To render
+last week's time, the following Razor markup is used:
+*@
+<p>Last week this time: @(DateTime.Now - TimeSpan.FromDays(7))</p>
+
+@*
+Any content within the @() parenthesis is evaluated and rendered to the output.
+
+Implicit expressions, described in the previous section, generally can't contain spaces.
+In the following code, one week is not subtracted from the current time:
+*@
+<p>Last week: @DateTime.Now - TimeSpan.FromDays(7)</p>
+
+@*The code renders the following HTML:*@
+<p>Last week: 7/7/2016 4:39:52 PM - TimeSpan.FromDays(7)</p>
+
+@*Explicit expressions can be used to concatenate text with an expression result:*@
+@{
+    var joe = new Person("Joe", 33);
+}
+
+<p>Age@(joe.Age)</p>
+
+@*
+Without the explicit expression, <p>Age@joe.Age</p> is treated as an email address, and <p>Age@joe.Age</p>
+is rendered. When written as an explicit expression, <p>Age33</p> is rendered.
+
+Explicit expressions can be used to render output from generic methods in .cshtml files. The following
+markup shows how to correct the error shown earlier caused by the brackets of a C# generic. The code
+is written as an explicit expression:
+*@
+<p>@(GenericMethod<int>())</p>
+
+@*
+Expression encoding
+C# expressions that evaluate to a string are HTML encoded. C# expressions that evaluate to IHtmlContent are
+rendered directly through IHtmlContent.WriteTo. C# expressions that don't evaluate to IHtmlContent are
+converted to a string by ToString and encoded before they're rendered.
+*@
+@("<span>Hello World</span>")
+
+@*The code renders the following HTML:*@
+&lt;span&gt;Hello World&lt;/span&gt;
+
+@*The HTML is shown in the browser as:*@
+<span>Hello World</span>
+
+@*
+Html.Raw output isn't encoded but rendered as HTML markup
+
+Warning
+Using HtmlHelper.Raw on unsanitized user input is a security risk. User input might contain
+malicious JavaScript or other exploits. Sanitizing user input is difficult. Avoid using HtmlHelper.Raw with user input.
+*@
+@Html.Raw("<span>Hello World</span>")
+
+@*The code renders the following HTML:*@
+<span>Hello World</span>
+
+@*
+Razor code blocks
+Razor code blocks start with @ and are enclosed by {}. Unlike expressions, C# code inside code blocks isn't rendered. Code
+blocks and expressions in a view share the same scope and are defined in order:
+*@
+@{
+    var quote = "The future depends on what you do today. -Mahatma Gandhi";
+}
+<p>@quote</p>
+@{
+    quote = "Hate cannot drive out hate, only love can do that. -Martin Luther King, Jr.";
+}
+<p>@quote</p>
+
+@*The code renders the following HTML:*@
+<p>The future depends on what you do today. -Mahatma Gandi</p>
+<p>Hate cannot drive out hate, only love can do that. -Martin Luther King, Jr.</p>
+
+@*
+Implicit transitions
+The default language in a code block is C#, but the Razor Page can transition back to HTML:
+*@
+@{
+    var inCSharp = true;
+    <p>Now in HTML, was in C# @inCSharp</p>
+}
+
+@*
+Explicit delimited transition
+To define a subsection of a code block that should render HTML, surround the characters for rendering
+with the Razor <text> tag:
+
+Use this approach to render HTML that isn't surrounded by an HTML tag. Without an HTML or Razor tag,
+a Razor runtime error occurs.
+
+The <text> tag is useful to control whitespace when rendering content:
+    - Only the content between the <text> tag is rendered.
+    - No whitespace before or after the <text> tag appears in the HTML output.
+*@
+@for (var i = 0; i < people.Length; i++)
+{
+    var person = people[i];
+    <text>Name: @person.Name</text>
+}
+
+@*
+Explicit Line Transition with @:
+To render the rest of an entire line as HTML inside a code block, use the @: syntax:
+
+Without the @: in the code, a Razor runtime error is generated.
+
+Warning: Extra @ characters in a Razor file can cause compiler errors at statements later in the block.
+These compiler errors can be difficult to understand because the actual error occurs before the reported
+error. This error is common after combining multiple implicit/explicit expressions into a single code block.
+*@
+@for (var i = 0; i < people.Length; i++)
+{
+    var person = people[i];
+    @:Name: @person.Name
+}
+
+@*
+Control structures
+Control structures are an extension of code blocks. All aspects of code blocks (transitioning to markup,
+inline C#) also apply to the following structures:
+
+Conditionals @if, else if, else, and @switch
+
+@if controls when code runs:
+*@
+@if (value % 2 == 0)
+{
+    <p>The value was even.</p>
+}
+@*else and else if don't require the @ symbol*@
+@if (value % 2 == 0)
+{
+    <p>The value was even.</p>
+}
+else if (value >= 1337)
+{
+    <p>The value is large.</p>
+}
+else
+{
+    <p>The value is odd and small.</p>
+}
+
+@*Switch statement*@
+@switch (value)
+{
+    case 1:
+        <p>The value is 1!</p>
+        break;
+    case 1337:
+        <p>Your number is 1337!</p>
+        break;
+    default:
+        <p>Your number wasn't 1 or 1337.</p>
+        break;
+}
+
+@*
+Looping @for, @foreach, @while, and @do while
+Templated HTML can be rendered with looping control statements. To render a list of people
+*@
+@{
+    var people = new Person[]
+    {
+        new Person("Weston", 33),
+        new Person("Johnathon", 41),
+        ...
+    };
+}
+
+@*
+The following looping statements are supported
+@for
+*@
+@for (var i = 0; i < people.Length; i++)
+{
+    var person = people[i];
+    <p>Name: @person.Name</p>
+    <p>Age: @person.Age</p>
+}
+
+@foreach (var person in people)
+{
+    <p>Name: @person.Name</p>
+    <p>Age: @person.Age</p>
+}
+
+@{ var i = 0; }
+@while (i < people.Length)
+{
+    var person = people[i];
+    <p>Name: @person.Name</p>
+    <p>Age: @person.Age</p>
+
+    i++;
+}
+
+@{ var i = 0; }
+@do
+{
+    var person = people[i];
+    <p>Name: @person.Name</p>
+    <p>Age: @person.Age</p>
+
+    i++;
+} while (i < people.Length);
+
+@*
+Compound @using
+In C#, a "using" statement is used to ensure an object is disposed. In Razor, the same
+mechanism is used to create HTML Helpers that contain additional content. In the following
+code, HTML Helpers render a form tag with the @using statement.
+
+Scope-level actions can be performed with Tag Helpers.
+*@
+@using (Html.BeginForm())
+{
+    <div>
+        email:
+        <input type="email" id="Email" value="">
+        <button>Register</button>
+    </div>
+}
+
+@*
+@try, catch, finally
+Exception handling is similar to C#
+*@
+@try
+{
+    throw new InvalidOperationException("You did something invalid.");
+}
+catch (Exception ex)
+{
+    <p>The exception message: @ex.Message</p>
+}
+finally
+{
+    <p>The finally statement.</p>
+}
+
+@*
+@lock
+Razor has the capability to protect critical sections with lock statements:
+*@
+@lock (SomeLock)
+{
+    // Do critical section work
+}
+
+@*
+Comments
+Razor supports C# and HTML comments:
+*@
+@{
+    /* C# comment */
+    // Another C# comment
+}
+<!--HTML comment-->
+
+@*The code renders the following HTML:*@
+<!--HTML comment-->
+
+@*
+Razor comments are removed by the server before the webpage is rendered. Razor
+uses @* *@ to delimit comments. The following code is commented out, so the server
+doesn't render any markup
+*@
+@*
+    @{
+        /* C# comment */
+        // Another C# comment
+    }
+    <!--HTML comment-->
+*@
+
+@*
+Directives
+Razor directives are represented by implicit expressions with reserved keywords following the @ symbol.
+A directive typically changes the way a view is parsed or enables different functionality.
+
+Understanding how Razor generates code for a view makes it easier to understand how directives work.
+*@
+@{
+    var quote = "Getting old ain't for wimps! - Anonymous";
+}
+<div>Quote of the Day: @quote</div>
+
+@*The code generates a class similar to the following in C#*@
+public class _Views_Something_cshtml : RazorPage<dynamic>
+{
+    public override async Task ExecuteAsync()
+    {
+        var output = "Getting old ain't for wimps! - Anonymous";
+
+        WriteLiteral("/r/n<div>Quote of the Day: ");
+        Write(output);
+        WriteLiteral("</div>");
+    }
+}
+
+@*
+@using
+The @using directive adds the C# "using" directive to the generated view:
+*@
+@using System.IO
+@{
+    var dir = Directory.GetCurrentDirectory();
+}
+<p>@dir</p>
+
+@*
+@model
+The @model directive specifies the type of the model passed to a view
+*@
+@model TypeNameOfModel
+
+@*
+In an ASP.NET Core MVC app created with individual user accounts,
+the Views/Account/Login.cshtml view contains the following model declaration:
+*@
+@model LoginViewModel
+
+@*The class generated inherits from RazorPage<dynamic>:*@
+public class _Views_Account_Login_cshtml : RazorPage<LoginViewModel>
+
+@*Razor exposes a Model property for accessing the model passed to the view:*@
+<div>The Login Email: @Model.Email</div>
+
+@*
+The @model directive specifies the type of this property. The directive specifies the
+T in RazorPage<T> that the generated class that the view derives from. If the @model
+directive isn't specified, the Model property is of type dynamic. The value of the model
+is passed from the controller to the view.
+*@
+
+@*
+@inherits
+The @inherits directive provides full control of the class the view inherits:
+*@
+@inherits TypeNameOfClassToInheritFrom
+
+@*The following code is a custom Razor page type:*@
+using Microsoft.AspNetCore.Mvc.Razor;
+public abstract class CustomRazorPage<TModel> : RazorPage<TModel>
+{
+    public string CustomText { get; } = "Gardyloo! - A Scottish warning yelled from a window before dumping a slop bucket on the street below.";
+}
+
+@*The CustomText is displayed in a view*@
+@inherits CustomRazorPage<TModel>
+<div>Custom text: @CustomText</div>
+
+@*The code renders the following HTML*@
+<div>Custom text: Gardyloo! - A Scottish warning yelled from a window before dumping a slop bucket on the street below.</div>
+
+@*@model and @inherits can be used in the same view. @inherits can be in a _ViewImports.cshtml file that the view imports:*@
+@inherits CustomRazorPage<TModel>
+
+@*Example of a strongly-typed view:*@
+@inherits CustomRazorPage<TModel>
+<div>The Login Email: @Model.Email</div>
+<div>Custom text: @CustomText</div>
+
+@*If "rick@contoso.com" is passed in the model, the view generates the following HTML markup*@
+<div>The Login Email: rick@contoso.com</div>
+<div>Custom text: Gardyloo! - A Scottish warning yelled from a window before dumping a slop bucket on the street below.</div>
+
+@*
+@inject
+The @inject directive enables the Razor Page to inject a service from the service container into a view.
+
+@functions
+The @functions directive enables a Razor Page to add a C# code block to a view.
+*@
+@functions { // C# Code }
+
+@*For example*@
+@functions {
+    public string GetHello()
+    {
+        return "Hello";
+    }
+}
+<div>From method: @GetHello()</div>
+
+@*The code generates the following HTML markup*@
+<div>From method: Hello</div>
+
+@*The following code is the generated Razor C# class.*@
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.Razor;
+public class _Views_Home_Test_cshtml : RazorPage<dynamic>
+{
+    // Functions placed between here
+    public string GetHello()
+    {
+        return "Hello";
+    }
+    // And here.
+#pragma warning disable 1998
+    public override async Task ExecuteAsync()
+    {
+        WriteLiteral();
+        Write(GetHello());
+        WriteLiteral("</div>\r\n");
+    }
+#pragma warning restore 1998
+
+@*
+@attribute
+The @attribute directive adds the given attribute to the class of the
+generated page or view. The following example adds the [Authorize] attribute
+*@
+@attribute [Authorize]
+
+@*
+@namespace
+The @namespace directive sets the namespace of the class of the generated page or view
+*@
+@namespace Your.Namespace.Here
+
+@*
+If a page or view imports API (Application Programming Interface) with an @namespace directive,
+the original file's namespace is set relative to that namespace.
+
+If MyApp/Pages/_ViewImports.cshtml contains @namespace Hello.World, the namespace of pages or views that
+import the Hello.World namespace is set as shown in the following table.
+
+...
+
+If multiple import files have the @namespace directive, the file closest to the page or view
+in the directory chain is used.
+
+@section
+The @section directive is used in conjuction with the layout to enable pages or views
+to render content in different parts of the HTML page.
+
+Templated Razor delegates
+Razor templates allow you to define a UI (User Interface) snippet with the following format:
+*@
+@<tag>...</tag>
+
+@*
+The following example illustrates how to specify a templated Razor delegate as a Func<T,TResult>.
+The dynamic type is specified for the parameter of the method that the delegate encapsulates.
+An object type is specified as the return value of the delegate. The template is used with a List<T>
+of Pet that has a Name property.
+*@
+public class Pet
+{
+    public string Name { get; set; }
+}
+@{
+    Func<dynamic, object> petTemplate = @<p>You have a pet named <strong>@item.Name</strong>.</p>
+
+    var pets = new List<Pet>
+    {
+        new Pet { Name = "Russell" },
+        new Pet { Name = "Tuga" },
+        new Pet { Name = "Boomer" }
+    };
+}
+
+@*The template is rendered with pets supplied by a foreach statement*@
+@foreach (var pet in pets)
+{
+    @petTemplate(pet)
+}
+
+@*Rendered output*@
+<p>You have a pet name <strong>Russell</strong>.</p>
+<p>You have a pet name <strong>Tuga</strong>.</p>
+<p>You have a pet name <strong>Boomer</strong>.</p>
+
+@*
+You can also supply an inline Razor template as an argument to a method. In the following example,
+the Repeat method receives a Razor template. The method uses the template to produce HTML content with
+repeats of items supplied from a list
+*@
+@using Microsoft.AspNetCore.Html
+
+@functions {
+    public static IHtmlContent Repeat(IEnumerable<dynamic> items, int times, Func<dynamic, IHtmlContent> template)
+    {
+        var html = new HtmlContentBuilder();
+
+        foreach (var item in items)
+        {
+            for (var i = 0; i < times; i++)
+            {
+                html.AppendHtml(template(item));
+            }
+        }
+
+        return html;
+    }
+}
+
+@*
+Using the list of pets from the prior example, the Repeat method is called with:
+    - List<T> of Pet
+    - Number of times to repeat each pet.
+    - Inline template to use for the list items of an unordered list.
+*@
+<ul>
+    @Repeat(pets, 3, @<li>@item.Name</li>)
+</ul>
+
+@*
+Rendered output
+*@
+<ul>
+    <li>Russell</li>
+    <li>Russell</li>
+    <li>Russell</li>
+    <li>Tuga</li>
+    <li>Tuga</li>
+    <li>Tuga</li>
+    <li>Boomer</li>
+    <li>Boomer</li>
+    <li>Boomer</li>
+</ul>
+
+@*
+Razor reserved keywords
+Razor keywords
+    - page
+    - namespace
+    - functions
+    - inherits
+    - model
+    - section
+    - helper
+
+Razor keywords are escaped with @(Razor Keyword) (for example, @(functions))
+
+C# Razor keywords
+    - case
+    - do
+    - default
+    - for
+    - foreach
+    - if
+    - else
+    - lock
+    - switch
+    - try
+    - catch
+    - finally
+    - using
+    - while
+
+C# Razor keywords must be double-escaped with @(@C# Razor Keyword) (for example, @(@case)).
+The first @ escapes the Razor parser. The second @ escapes the C# parser.
+
+Reserved keywords not used by Razor
+    - class
+*@
